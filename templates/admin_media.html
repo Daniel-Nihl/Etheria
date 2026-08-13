@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Etheria - Gestionar Media</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@4.5.2/dist/slate/bootstrap.min.css">
+</head>
+<body>
+<header>
+    <h1 class="titulo">
+        <a href="{{ url_for('admin_home') }}">
+            <img src="{{ url_for('static', filename='img/Etheria.png') }}" alt="Etheria"
+                 class="admin-header-logo">
+        </a>
+    </h1>
+    <nav class="top-nav">
+        <a href="{{ url_for('admin_media') }}">Gestionar Media</a>
+        <a href="{{ url_for('admin_buscar') }}">Buscar</a>
+        <a href="/usuarios">Usuarios</a>
+        <a href="/logout" style="padding-left: 400px">Salir</a>
+    </nav>
+</header>
+
+<main class="admin-page">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+    <div class="flash flash-{{ category }}">{{ message }}</div>
+    {% endfor %}
+    {% endwith %}
+
+    <div class="admin-top">
+        <h2>Gestionar media</h2>
+        <a class="back-link" href="{{ url_for('admin_home') }}">← Volver al administrador</a>
+    </div>
+
+    <div class="form-grid">
+        <section class="form-card">
+            <h3>Añadir película</h3>
+            <form action="{{ url_for('crear_pelicula') }}" method="post" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="movie-title">Título *</label>
+                    <input id="movie-title" class="form-control" type="text" name="titulo" required maxlength="100">
+                </div>
+                <div class="form-group">
+                    <label for="movie-genre">Género</label>
+                    <input id="movie-genre" class="form-control" type="text" name="genero" maxlength="50">
+                </div>
+                <div class="form-group">
+                    <label for="movie-year">Año</label>
+                    <input id="movie-year" class="form-control" type="number" name="anio" min="0">
+                </div>
+                <div class="form-group">
+                    <label for="movie-duration">Duración (minutos)</label>
+                    <input id="movie-duration" class="form-control" type="number" name="duracion" min="0">
+                </div>
+                <div class="form-group">
+                    <label for="movie-director">Director</label>
+                    <input id="movie-director" class="form-control" type="text" name="director" maxlength="100">
+                </div>
+                <div class="form-group">
+                    <label for="movie-description">Descripción</label>
+                    <textarea id="movie-description" class="form-control" name="descripcion"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="movie-image">Miniatura</label>
+                    <input id="movie-image" class="form-control-file" type="file" name="imagen"
+                           accept="image/png,image/jpeg,image/gif,image/webp">
+                </div>
+                <button class="btn btn-primary" type="submit">Añadir película</button>
+            </form>
+        </section>
+
+        <section class="form-card">
+            <h3>Añadir serie</h3>
+            <form action="{{ url_for('crear_serie') }}" method="post" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="series-title">Título *</label>
+                    <input id="series-title" class="form-control" type="text" name="titulo" required maxlength="100">
+                </div>
+                <div class="form-group">
+                    <label for="series-genre">Género</label>
+                    <input id="series-genre" class="form-control" type="text" name="genero" maxlength="50">
+                </div>
+                <div class="form-group">
+                    <label for="series-year">Año</label>
+                    <input id="series-year" class="form-control" type="number" name="anio" min="0">
+                </div>
+                <div class="form-group">
+                    <label for="series-showrunner">Showrunner</label>
+                    <input id="series-showrunner" class="form-control" type="text" name="showrunner" maxlength="100">
+                </div>
+                <div class="form-group">
+                    <label for="series-description">Descripción</label>
+                    <textarea id="series-description" class="form-control" name="descripcion"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="series-image">Miniatura</label>
+                    <input id="series-image" class="form-control-file" type="file" name="imagen"
+                           accept="image/png,image/jpeg,image/gif,image/webp">
+                </div>
+                <button class="btn btn-primary" type="submit">Añadir serie</button>
+            </form>
+        </section>
+    </div>
+
+    <section class="media-card">
+        <h3>Películas</h3>
+        <div class="media-list">
+            {% for media in peliculas %}
+            <article class="media-entry">
+                {% if media.imagen %}
+                <img src="{{ url_for('static', filename='img/' + media.imagen) }}" alt="{{ media.titulo }}">
+                {% endif %}
+                <div class="media-entry-title">{{ media.titulo }}</div>
+                <div class="media-entry-meta">
+                    {{ media.genero or 'Sin género' }}{% if media.anio %} · {{ media.anio }}{% endif %}
+                </div>
+                <div class="actions">
+                    <form action="{{ url_for('eliminar_media', media_id=media.id) }}" method="post"
+                          onsubmit="return confirm('¿Eliminar esta película?');">
+                        <button class="btn btn-danger btn-sm" type="submit">Eliminar</button>
+                    </form>
+                </div>
+            </article>
+            {% else %}
+            <p>No hay películas añadidas.</p>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="media-card">
+        <h3>Series</h3>
+        <div class="media-list">
+            {% for media in series %}
+            <article class="media-entry">
+                {% if media.imagen %}
+                <img src="{{ url_for('static', filename='img/' + media.imagen) }}" alt="{{ media.titulo }}">
+                {% endif %}
+                <div class="media-entry-title">{{ media.titulo }}</div>
+                <div class="media-entry-meta">
+                    {{ media.genero or 'Sin género' }}{% if media.anio %} · {{ media.anio }}{% endif %}
+                    · {{ media.serie_detalle.temporadas|length }} temporada(s)
+                </div>
+                <div class="actions">
+                    <a class="btn btn-primary btn-sm" href="{{ url_for('admin_serie', media_id=media.id) }}">Gestionar
+                        serie</a>
+                    <form action="{{ url_for('eliminar_media', media_id=media.id) }}" method="post"
+                          onsubmit="return confirm('¿Eliminar esta serie y todos sus elementos?');">
+                        <button class="btn btn-danger btn-sm" type="submit">Eliminar</button>
+                    </form>
+                </div>
+            </article>
+            {% else %}
+            <p>No hay series añadidas.</p>
+            {% endfor %}
+        </div>
+    </section>
+</main>
+</body>
+</html>

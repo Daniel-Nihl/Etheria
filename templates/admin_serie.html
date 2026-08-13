@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Etheria - {{ media.titulo }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@4.5.2/dist/slate/bootstrap.min.css">
+</head>
+<body>
+<header>
+    <h1 class="titulo">
+        <a href="{{ url_for('admin_home') }}">
+            <img src="{{ url_for('static', filename='img/Etheria.png') }}" alt="Etheria"
+                 class="admin-header-logo">
+        </a>
+    </h1>
+    <nav class="top-nav">
+        <a href="{{ url_for('admin_media') }}">Gestionar Media</a>
+        <a href="{{ url_for('admin_buscar') }}">Buscar</a>
+        <a href="/usuarios">Usuarios</a>
+        <a href="/logout" style="padding-left: 400px">Salir</a>
+    </nav>
+</header>
+
+<main class="admin-page">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+    <div class="flash flash-{{ category }}">{{ message }}</div>
+    {% endfor %}
+    {% endwith %}
+
+    <div class="top-line">
+        <div>
+            <h2>{{ media.titulo }}</h2>
+            <div>{{ media.genero or 'Sin género' }}{% if media.anio %} · {{ media.anio }}{% endif %}</div>
+            {% if serie.showrunner %}
+            <div>Showrunner: {{ serie.showrunner }}</div>
+            {% endif %}
+            {% if media.descripcion %}<p class="admin-media-description">{{ media.descripcion }}</p>{% endif %}
+        </div>
+        <a class="btn btn-secondary" href="{{ url_for('admin_media') }}">← Volver</a>
+    </div>
+
+    <section class="card-admin">
+        <h3>Añadir temporada</h3>
+        <form action="{{ url_for('crear_temporada', media_id=media.id) }}" method="post" enctype="multipart/form-data">
+            <div class="form-row">
+                <div class="form-group col-md-2">
+                    <label>Número *</label>
+                    <input class="form-control" type="number" name="numero" min="1" required>
+                </div>
+                <div class="form-group col-md-4">
+                    <label>Título</label>
+                    <input class="form-control" type="text" name="titulo" maxlength="100">
+                </div>
+                <div class="form-group col-md-6">
+                    <label>Miniatura</label>
+                    <input class="form-control-file" type="file" name="imagen"
+                           accept="image/png,image/jpeg,image/gif,image/webp">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Descripción</label>
+                <textarea class="form-control" name="descripcion"></textarea>
+            </div>
+            <button class="btn btn-primary" type="submit">Añadir temporada</button>
+        </form>
+    </section>
+
+    <section>
+        <h3>Temporadas</h3>
+        <div class="season-grid">
+            {% for temporada in serie.temporadas %}
+            <article class="season-card">
+                {% if temporada.imagen %}
+                <img src="{{ url_for('static', filename='img/' + temporada.imagen) }}"
+                     alt="Temporada {{ temporada.numero }}">
+                {% endif %}
+                <h4>Temporada {{ temporada.numero }}{% if temporada.titulo %} — {{ temporada.titulo }}{% endif %}</h4>
+                {% if temporada.descripcion %}<p>{{ temporada.descripcion }}</p>{% endif %}
+
+                <div class="actions">
+                    <form action="{{ url_for('eliminar_temporada', temporada_id=temporada.id) }}" method="post"
+                          onsubmit="return confirm('¿Eliminar esta temporada y sus episodios?');">
+                        <button class="btn btn-danger btn-sm" type="submit">Eliminar temporada</button>
+                    </form>
+                </div>
+
+                <hr>
+                <h5>Añadir episodios</h5>
+                <form action="{{ url_for('crear_muchos_episodios', temporada_id=temporada.id) }}"
+                      method="post" enctype="multipart/form-data"
+                      class="bulk-episode-form">
+
+                    <div class="form-row">
+                        <div class="form-group col-md-3">
+                            <label>Cantidad *</label>
+                            <input class="form-control" type="number" name="cantidad"
+                                   min="1" max="1000" value="20" required>
+                        </div>
+
+                        <div class="form-group col-md-9">
+                            <label>Miniatura por defecto</label>
+                            {% if temporada.imagen %}
+                            <div class="default-image-info">
+                                Se utilizará la miniatura de la temporada:
+                                <strong>Season {{ temporada.numero }}</strong>
+                            </div>
+                            {% else %}
+                            <div class="default-image-warning">
+                                Esta temporada no tiene miniatura. Debes subir una.
+                            </div>
+                            {% endif %}
+
+                            <input class="form-control-file" type="file" name="imagen_default"
+                                   accept="image/png,image/jpeg,image/gif,image/webp">
+                            <small class="form-text text-muted">
+                                Si subes una imagen aquí, sustituirá la miniatura de la temporada
+                                como imagen por defecto de los nuevos episodios.
+                            </small>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary" type="submit">
+                        Crear episodios automáticamente
+                    </button>
+                </form>
+
+                <p class="bulk-episode-help">
+                    Se crearán episodios consecutivos empezando por el siguiente número disponible,
+                    con títulos <strong>Episodio X</strong>.
+                </p>
+
+                <details class="manual-episode-form">
+                    <summary>Añadir un episodio manualmente</summary>
+
+                    <form action="{{ url_for('crear_episodio', temporada_id=temporada.id) }}"
+                          method="post" enctype="multipart/form-data">
+
+                        <div class="form-row">
+                            <div class="form-group col-md-3">
+                                <label>Número *</label>
+                                <input class="form-control" type="number" name="numero" min="1" required>
+                            </div>
+                            <div class="form-group col-md-9">
+                                <label>Título *</label>
+                                <input class="form-control" type="text" name="titulo"
+                                       maxlength="150" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Descripción</label>
+                            <textarea class="form-control" name="descripcion"></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Miniatura (opcional)</label>
+                            <input class="form-control-file" type="file" name="imagen"
+                                   accept="image/png,image/jpeg,image/gif,image/webp">
+                        </div>
+
+                        <button class="btn btn-primary btn-sm" type="submit">
+                            Añadir episodio manualmente
+                        </button>
+                    </form>
+                </details>
+
+                <hr>
+                <h5>Episodios ({{ temporada.episodios|length }})</h5>
+                {% for episodio in temporada.episodios %}
+                <article class="episode">
+                    <div class="episode-header">
+                        <div>
+                            <div class="episode-title">
+                                {{ episodio.numero }}. {{ episodio.titulo }}
+                            </div>
+                            {% if episodio.descripcion %}
+                            <div class="episode-meta">{{ episodio.descripcion }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="actions">
+                            <details class="episode-edit">
+                                <summary class="btn btn-secondary btn-sm">Editar</summary>
+
+                                <form action="{{ url_for('editar_episodio', episodio_id=episodio.id) }}"
+                                      method="post" enctype="multipart/form-data"
+                                      class="episode-edit-form">
+
+                                    <div class="form-group">
+                                        <label>Título</label>
+                                        <input class="form-control" type="text" name="titulo"
+                                               value="{{ episodio.titulo }}" maxlength="150" required>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>Descripción</label>
+                                        <textarea class="form-control" name="descripcion">{{ episodio.descripcion or '' }}</textarea>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>Miniatura (opcional)</label>
+                                        <input class="form-control-file" type="file" name="imagen"
+                                               accept="image/png,image/jpeg,image/gif,image/webp">
+                                    </div>
+
+                                    <button class="btn btn-primary btn-sm" type="submit">
+                                        Guardar cambios
+                                    </button>
+                                </form>
+                            </details>
+
+                            <form action="{{ url_for('eliminar_episodio', episodio_id=episodio.id) }}"
+                                  method="post"
+                                  onsubmit="return confirm('¿Eliminar este episodio?');">
+                                <button class="btn btn-danger btn-sm" type="submit">
+                                    Eliminar episodio
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </article>
+                {% else %}
+                <p class="episode-meta">No hay episodios todavía.</p>
+                {% endfor %}
+            </article>
+            {% else %}
+            <p>No hay temporadas todavía. Añade la primera usando el formulario superior.</p>
+            {% endfor %}
+        </div>
+    </section>
+</main>
+</body>
+</html>

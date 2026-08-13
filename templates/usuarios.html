@@ -19,8 +19,9 @@
         </a>
     </h1>
     <nav class="top-nav">
-        <a href="/admin_buscar">Buscar</a>
-        <a href="/usuarios" class="active">Usuarios</a>
+        <a href="{{ url_for('admin_media') }}">Gestionar Media</a>
+        <a href="{{ url_for('admin_buscar') }}">Buscar</a>
+        <a href="/usuarios">Usuarios</a>
         <a href="/logout" style="padding-left: 400px">Salir</a>
     </nav>
 </header>

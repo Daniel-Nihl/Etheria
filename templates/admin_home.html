@@ -18,7 +18,8 @@
     </h1>
 
     <nav class="top-nav">
-        <a href="/admin_buscar">Buscar</a>
+        <a href="{{ url_for('admin_media') }}">Gestionar Media</a>
+        <a href="{{ url_for('admin_buscar') }}">Buscar</a>
         <a href="/usuarios">Usuarios</a>
         <a href="/logout" style="padding-left: 400px">Salir</a>
     </nav>
@@ -49,10 +50,9 @@
                          alt="{{ item.titulo }}"
                          class="thumbnail"
                          data-title="{{ item.titulo }}"
-                         data-type="{% if item.temporadas %}serie{% else %}pelicula{% endif %}"
-                         {% if item.temporadas %}data-temporadas="{{ item.temporadas }}" {% endif %}>
-                    <button class="toggle-oculto-btn" data-id="{{ item.media_id or item.id }}"
-                            data-tipo="{% if item.__class__.__name__ == 'SerieDetalle' %}serie{% elif item.__class__.__name__ == 'PeliculaDetalle' %}pelicula{% else %}media{% endif %}">
+                         data-type="{{ item.tipo }}"
+                         {% if item.tipo =='serie' %}data-temporadas="{{ item.temporadas }}" {% endif %}>
+                    <button class="toggle-oculto-btn" data-id="{{ item.id }}">
                         {% if item.oculto %}Mostrar{% else %}Ocultar{% endif %}
                     </button>
                 </div>
@@ -115,10 +115,9 @@
     document.querySelectorAll('.toggle-oculto-btn').forEach(btn => {
         btn.addEventListener('click', async () => {
             const mediaId = btn.dataset.id;
-            const tipo = btn.dataset.tipo;
 
             try {
-                const res = await fetch(`/ocultar_media/${tipo}/${mediaId}`, {method: 'POST'});
+                const res = await fetch(`/ocultar_media/${mediaId}`, {method: 'POST'});
                 const data = await res.json();
 
                 if (!data.success) {
@@ -126,8 +125,7 @@
                     return;
                 }
 
-                // Actualiza todas las miniaturas con el mismo ID
-                document.querySelectorAll(`.media-item .toggle-oculto-btn[data-id="${mediaId}"][data-tipo="${tipo}"]`).forEach(b => {
+                document.querySelectorAll(`.toggle-oculto-btn[data-id="${mediaId}"]`).forEach(b => {
                     const parentItem = b.closest('.media-item');
                     if (!parentItem) return;
 

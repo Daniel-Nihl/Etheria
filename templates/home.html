@@ -46,19 +46,18 @@
         <div class="horizontal-scroll">
             {% for item in items %}
             <div class="media-item">
-                {% set temporadas = item.temporadas if item.temporadas is defined else None %}
                 <img src="{{ url_for('static', filename='img/' + item.imagen) }}"
                      alt="{{ item.titulo }}"
                      class="thumbnail"
                      data-title="{{ item.titulo }}"
-                     data-description="
-                             Año: {{ item.anio }},
+                     data-description="{{ item.descripcion or '' }}{% if item.anio %} Año: {{ item.anio }},{% endif %}
                              {% if item.pelicula_detalle and item.pelicula_detalle.duracion %}Duración: {{ item.pelicula_detalle.duracion }} min,{% endif %}
                              {% if item.pelicula_detalle and item.pelicula_detalle.director %}Director: {{ item.pelicula_detalle.director }},{% endif %}
                              {% if item.serie_detalle and item.serie_detalle.showrunner %}Showrunner: {{ item.serie_detalle.showrunner }},{% endif %}
-                             {% if item.serie_detalle and item.serie_detalle.temporadas %}Temporadas: {{ item.serie_detalle.temporadas }},{% endif %}
+                             {% if item.temporadas %}Temporadas: {{ item.temporadas }},{% endif %}
                              "
-                     data-type="{% if item.temporadas %}serie{% else %}pelicula{% endif %}"
+                     data-type="{{ item.tipo }}"
+                     data-media-id="{{ item.id }}"
                      data-image="{{ url_for('static', filename='img/' + item.imagen) }}"
                      {% if item.temporadas %}data-temporadas="{{ item.temporadas }}" {% endif %}>
             </div>
@@ -169,9 +168,9 @@
 
     document.querySelectorAll(".thumbnail").forEach(img => {
         img.addEventListener("click", async () => {
-            const tipo = img.dataset.type; // ← Detecta si es serie o película
+            const tipo = img.dataset.type;
             const titulo = img.dataset.title;
-            const temporadas = img.dataset.temporadas;
+            const mediaId = img.dataset.mediaId;
 
             // Abrimos el modal
             modal.style.display = "flex";
@@ -185,36 +184,98 @@
             modalTitle.textContent = titulo;
             modalDesc.textContent = img.dataset.description;
 
-            // Si es SERIE mostramos los elementos de las temporadas
+            // Si es serie, cargamos sus temporadas y episodios desde la base de datos.
             if (tipo === "serie") {
-                // Mostrar selector de temporada
                 seasonSelector.style.display = "block";
-                seasonDropdown.innerHTML = "";
-
-                for (let i = 1; i <= parseInt(temporadas); i++) {
-                    const option = document.createElement("option");
-                    option.value = i;
-                    option.textContent = `Temporada ${i}`;
-                    seasonDropdown.appendChild(option);
-                }
-
-                // Mostramos las miniaturas de las temporadas
-                seasonThumbnailContainer.style.display = "none";
-                seasonThumbnail.src = `/static/img/${encodeURIComponent(titulo)}_season1.jpg`;
-
-                // Mostramos los capítulos
-                episodesContainer.style.display = "block";
-                cargarCapitulos(titulo, 1);
                 episodesContainer.style.display = "flex";
                 episodesContainer.style.flexDirection = "column";
+                seasonThumbnailContainer.style.display = "block";
+                seasonDropdown.innerHTML = "";
+                episodesList.innerHTML = "";
 
-                modalContent.classList.add("series-modal");
+                try {
+                    const response = await fetch(`/api/series/${mediaId}`);
+                    const data = await response.json();
+
+                    if (!response.ok || !data.success && data.error) {
+                        throw new Error(data.error || "No se pudo cargar la serie");
+                    }
+
+                    if (!data.temporadas.length) {
+                        seasonSelector.style.display = "none";
+                        seasonThumbnailContainer.style.display = "none";
+                        episodesList.innerHTML = "<p>No hay temporadas disponibles.</p>";
+                    } else {
+                        data.temporadas.forEach(temporada => {
+                            const option = document.createElement("option");
+                            option.value = temporada.id;
+                            option.textContent = temporada.titulo
+                                ? `Temporada ${temporada.numero} - ${temporada.titulo}`
+                                : `Temporada ${temporada.numero}`;
+                            seasonDropdown.appendChild(option);
+                        });
+
+                        renderSeason(data.temporadas[0]);
+
+                        seasonDropdown.onchange = () => {
+                            const temporada = data.temporadas.find(
+                                item => item.id === Number(seasonDropdown.value)
+                            );
+                            if (temporada) renderSeason(temporada);
+                        };
+                    }
+
+                    modalContent.classList.add("series-modal");
+                } catch (err) {
+                    console.error(err);
+                    seasonSelector.style.display = "none";
+                    seasonThumbnailContainer.style.display = "none";
+                    episodesList.innerHTML = "<p>No se han podido cargar las temporadas.</p>";
+                }
             } else {
                 seasonSelector.style.display = "none";
                 seasonThumbnailContainer.style.display = "none";
                 episodesContainer.style.display = "none";
-
                 modalContent.classList.remove("series-modal");
+            }
+
+            function renderSeason(temporada) {
+                seasonThumbnail.src = temporada.imagen
+                    ? `/static/img/${temporada.imagen}`
+                    : "/static/img/coming_soon.jpg";
+
+                seasonThumbnail.onerror = () => {
+                    seasonThumbnail.src = "/static/img/coming_soon.jpg";
+                };
+
+                episodesList.innerHTML = "";
+
+                temporada.episodios.forEach(episodio => {
+                    const epDiv = document.createElement("div");
+                    epDiv.classList.add("episode-item");
+
+                    const epImg = document.createElement("img");
+                    epImg.src = episodio.imagen
+                        ? `/static/img/${episodio.imagen}`
+                        : "/static/img/coming_soon.jpg";
+                    epImg.onerror = () => {
+                        epImg.src = "/static/img/coming_soon.jpg";
+                    };
+                    epImg.alt = episodio.titulo;
+                    epImg.title = episodio.titulo;
+
+                    const epNum = document.createElement("span");
+                    epNum.textContent = `Cap ${episodio.numero}: ${episodio.titulo}`;
+                    epNum.classList.add("episode-number");
+
+                    epDiv.appendChild(epImg);
+                    epDiv.appendChild(epNum);
+                    episodesList.appendChild(epDiv);
+                });
+
+                if (!temporada.episodios.length) {
+                    episodesList.innerHTML = "<p>No hay episodios disponibles.</p>";
+                }
             }
 
             try {
@@ -258,49 +319,6 @@
             document.body.style.overflow = ""; // restaurar scroll
         }
     });
-
-    // Cambiamos de temporada
-    seasonDropdown.addEventListener("change", () => {
-        const titulo = modalTitle.textContent.trim();
-        const temporada = parseInt(seasonDropdown.value);
-        seasonThumbnail.src = `/static/img/${encodeURIComponent(titulo)}_season${temporada}.jpg`;
-        cargarCapitulos(titulo, temporada);
-    });
-
-    function cargarCapitulos(titulo, temporada) {
-        episodesList.innerHTML = "";
-        const capitulos = 10;
-
-        const safeTitle = titulo
-            .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // quita acentos
-            .replace(/\s+/g, "_") // reemplaza espacios
-            .toLowerCase(); // minúsculas
-
-        const imagenPath = `/static/img/${safeTitle}_season${temporada}.jpg`;
-
-        for (let i = 1; i <= capitulos; i++) {
-            const epDiv = document.createElement("div");
-            epDiv.classList.add("episode-item");
-
-            const epImg = document.createElement("img");
-            epImg.src = imagenPath;
-
-            epImg.onerror = () => {
-                epImg.src = "/static/img/coming_soon.jpg";
-            };
-
-            epImg.alt = `Capítulo ${i}`;
-            epImg.title = `Capítulo ${i}`;
-
-            const epNum = document.createElement("span");
-            epNum.textContent = `Cap ${i}`;
-            epNum.classList.add("episode-number");
-
-            epDiv.appendChild(epImg);
-            epDiv.appendChild(epNum);
-            episodesList.appendChild(epDiv);
-        }
-    }
 
     listBtn.addEventListener("click", async () => {
         const titulo = modalTitle.textContent.trim();
