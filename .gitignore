@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+*.pyc
+.idea/
+Daniel_Párraga_Domínguez.docx
+test.db

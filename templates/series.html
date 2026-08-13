@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Series - Etheria</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/bootswatch@4.5.2/dist/slate/bootstrap.min.css"
+          integrity="sha384-8iuq0iaMHpnH2vSyvZMSIqQuUnQA7QM+f6srIdlgBrTSEyd//AWNMyEaSF2yPzNQ"
+          crossorigin="anonymous">
+</head>
+<body class="body">
+
+<header>
+    <h1 class="titulo">
+        <a href="{{ url_for('home') }}">
+            <img src="{{ url_for('static', filename='img/Etheria.png') }}" style="width:100px; height:26px">
+        </a>
+    </h1>
+
+    <nav class="top-nav">
+        <a href="/peliculas">Películas</a>
+        <a href="/series" class="active">Series</a>
+        <a href="/lista">Mi lista</a>
+        <a href="/visto">Visto</a>
+        <a href="/buscar">Buscar</a>
+        <a href="/logout" style="padding-left: 100px">Salir</a>
+    </nav>
+</header>
+
+{% macro carousel_block(title, items) %}
+<div class="media-block">
+    <h2>{{ title }}</h2>
+    <div class="carousel-wrapper">
+        <button class="scroll-left">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" class="bi bi-caret-left-fill"
+                 viewBox="0 0 16 16">
+                <defs>
+                    <linearGradient id="gradiente-flecha-left" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="crimson" stop-opacity="1"/>
+                        <stop offset="100%" stop-color="darkred" stop-opacity="0.8"/>
+                    </linearGradient>
+                </defs>
+                <path fill="url(#gradiente-flecha-left)"
+                      d="m3.86 8.753 5.482 4.796c.646.566 1.658.106 1.658-.753V3.204a1 1 0 0 0-1.659-.753l-5.48 4.796a1 1 0 0 0 0 1.506z"/>
+            </svg>
+        </button>
+        <div class="horizontal-scroll">
+            {% for item in items %}
+            <div class="media-item">
+                <img src="{{ url_for('static', filename='img/' + item.imagen) }}"
+                     alt="{{ item.titulo }}"
+                     class="thumbnail"
+                     data-title="{{ item.titulo }}"
+                     data-description="Año: {{ item.anio }},
+                     {% if item.serie_detalle and item.serie_detalle.showrunner %}Showrunner: {{ item.serie_detalle.showrunner }},{% endif %}
+                     {% if item.serie_detalle and item.serie_detalle.temporadas %}Temporadas: {{ item.serie_detalle.temporadas }},{% endif %}"
+                     data-type="serie"
+                     data-temporadas="{{ item.temporadas }}"
+                     data-image="{{ url_for('static', filename='img/' + item.imagen) }}">
+            </div>
+            {% endfor %}
+
+            {% for i in range(9) %}
+            <div class="media-item">
+                <img src="{{ url_for('static', filename='img/coming_soon.jpg') }}"
+                     alt="Coming Soon" class="thumbnail"
+                     data-title="Próximamente"
+                     data-description="Este contenido no está disponible todavía."
+                     data-image="{{ url_for('static', filename='img/coming_soon.jpg') }}">
+            </div>
+            {% endfor %}
+        </div>
+        <button class="scroll-right">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" class="bi bi-caret-right-fill"
+                 viewBox="0 0 16 16">
+                <defs>
+                    <linearGradient id="gradiente-flecha-right" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="darkred" stop-opacity="0.8"/>
+                        <stop offset="100%" stop-color="crimson" stop-opacity="1"/>
+                    </linearGradient>
+                </defs>
+                <path fill="url(#gradiente-flecha-right)"
+                      d="m12.14 8.753-5.482 4.796c-.646.566-1.658.106-1.658-.753V3.204a1 1 0 0 1 1.659-.753l5.48 4.796a1 1 0 0 1 0 1.506z"/>
+            </svg>
+        </button>
+    </div>
+</div>
+{% endmacro %}
+
+<main style="padding-bottom: 40px;">
+    <h2 style="text-align:left; margin:20px;">SERIES</h2>
+
+    {{ carousel_block("Todas las Series", series) }}
+    {{ carousel_block("Drama", dramas) }}
+    {{ carousel_block("Romance", romance) }}
+    {{ carousel_block("Animación", animacion) }}
+</main>
+
+<div id="media-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn">&times;</span>
+
+        <div class="modal-left">
+            <div class="modal-header">
+                <img id="modal-image" src="" alt="Media header">
+            </div>
+            <div class="modal-body">
+                <h3 id="modal-title"></h3>
+                <p id="modal-description"></p>
+
+                <div id="season-selector" style="display:none; margin-top:10px;">
+                    <select id="season-dropdown"></select>
+                </div>
+                <div id="season-thumbnail-container" style="display:none; margin-top:10px;">
+                    <img id="season-thumbnail" src="" alt=""
+                         style="max-width:100%; border-radius:8px;">
+                </div>
+
+                <div class="modal-buttons" style="margin-top:15px;">
+                    <button id="list-btn" class="list-btn">＋ Mi lista</button>
+                    <button id="seen-btn" class="seen-btn">👁</button>
+                    <button class="play-btn">▶ Reproducir</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-right" id="episodes-container" style="display:none;">
+            <h4>Capítulos</h4>
+            <div id="episodes-list" class="episodes-list"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.querySelectorAll('.carousel-wrapper').forEach(wrapper => {
+        const scrollContainer = wrapper.querySelector('.horizontal-scroll');
+        const leftBtn = wrapper.querySelector('.scroll-left');
+        const rightBtn = wrapper.querySelector('.scroll-right');
+
+        const gap = parseInt(getComputedStyle(scrollContainer).gap) || 0;
+        const itemWidth = wrapper.querySelector('.media-item').offsetWidth;
+        const scrollAmount = itemWidth * 4 + gap * 3;
+
+        leftBtn.addEventListener('click', () => {
+            scrollContainer.scrollBy({left: -scrollAmount, behavior: 'smooth'});
+        });
+
+        rightBtn.addEventListener('click', () => {
+            scrollContainer.scrollBy({left: scrollAmount, behavior: 'smooth'});
+        });
+    });
+
+    const modal = document.getElementById("media-modal");
+    const modalImg = document.getElementById("modal-image");
+    const modalTitle = document.getElementById("modal-title");
+    const modalDesc = document.getElementById("modal-description");
+    const closeBtn = document.querySelector(".close-btn");
+
+    const seasonSelector = document.getElementById("season-selector");
+    const seasonDropdown = document.getElementById("season-dropdown");
+    const seasonThumbnailContainer = document.getElementById("season-thumbnail-container");
+    const seasonThumbnail = document.getElementById("season-thumbnail");
+
+    const episodesContainer = document.getElementById("episodes-container");
+    const episodesList = document.getElementById("episodes-list");
+
+    const modalContent = modal.querySelector(".modal-content");
+
+    const listBtn = document.getElementById("list-btn");
+    const seenBtn = document.getElementById("seen-btn");
+
+    document.querySelectorAll(".thumbnail").forEach(img => {
+        img.addEventListener("click", async () => {
+            const tipo = img.dataset.type;
+            const titulo = img.dataset.title;
+            const temporadas = img.dataset.temporadas;
+
+            modal.style.display = "flex";
+            document.body.style.overflow = "hidden";
+
+            modalImg.src = img.dataset.image;
+            modalTitle.textContent = titulo;
+            modalDesc.textContent = img.dataset.description;
+
+            if (tipo === "serie" && temporadas) {
+                seasonSelector.style.display = "block";
+                seasonDropdown.innerHTML = "";
+                for (let i = 1; i <= parseInt(temporadas); i++) {
+                    const option = document.createElement("option");
+                    option.value = i;
+                    option.textContent = `Temporada ${i}`;
+                    seasonDropdown.appendChild(option);
+                }
+
+                seasonThumbnailContainer.style.display = "block";
+                seasonThumbnail.src = `/static/img/${encodeURIComponent(titulo)}_season1.jpg`;
+
+                episodesContainer.style.display = "flex";
+                episodesContainer.style.flexDirection = "column";
+                cargarCapitulos(titulo, 1);
+
+                modalContent.classList.add("series-modal");
+            } else {
+                seasonSelector.style.display = "none";
+                seasonThumbnailContainer.style.display = "none";
+                episodesContainer.style.display = "none";
+                modalContent.classList.remove("series-modal");
+            }
+
+            try {
+                const resLista = await fetch(`/en_lista/${encodeURIComponent(titulo)}`);
+                const dataLista = await resLista.json();
+                if (dataLista.en_lista) {
+                    listBtn.classList.add("added");
+                    listBtn.textContent = "✔ En mi lista";
+                } else {
+                    listBtn.classList.remove("added");
+                    listBtn.textContent = "＋ Mi lista";
+                }
+            } catch (err) {
+                console.error(err);
+            }
+
+            try {
+                const resVisto = await fetch(`/en_visto/${encodeURIComponent(titulo)}`);
+                const dataVisto = await resVisto.json();
+                if (dataVisto.visto) {
+                    seenBtn.classList.add("visto");
+                    seenBtn.textContent = "✅";
+                } else {
+                    seenBtn.classList.remove("visto");
+                    seenBtn.textContent = "👁";
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        });
+    });
+
+    closeBtn.addEventListener("click", () => {
+        modal.style.display = "none";
+        document.body.style.overflow = "";
+    });
+
+    window.addEventListener("click", e => {
+        if (e.target === modal) {
+            modal.style.display = "none";
+            document.body.style.overflow = "";
+        }
+    });
+
+    seasonDropdown.addEventListener("change", () => {
+        const titulo = modalTitle.textContent.trim();
+        const temporada = parseInt(seasonDropdown.value);
+
+        seasonThumbnail.src = `/static/img/${encodeURIComponent(titulo)}_season${temporada}.jpg`;
+        seasonThumbnailContainer.style.display = "block";
+
+        cargarCapitulos(titulo, temporada);
+    });
+
+    function cargarCapitulos(titulo, temporada) {
+        episodesList.innerHTML = "";
+        const capitulos = 10;
+        const safeTitle = titulo
+            .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+            .replace(/\s+/g, "_").toLowerCase();
+
+        const imagenPath = `/static/img/${safeTitle}_season${temporada}.jpg`;
+
+        for (let i = 1; i <= capitulos; i++) {
+            const epDiv = document.createElement("div");
+            epDiv.classList.add("episode-item");
+
+            const epImg = document.createElement("img");
+            epImg.src = imagenPath;
+            epImg.onerror = () => epImg.src = "/static/img/coming_soon.jpg";
+            epImg.alt = `Capítulo ${i}`;
+            epImg.title = `Capítulo ${i}`;
+
+            const epNum = document.createElement("span");
+            epNum.textContent = `Cap ${i}`;
+            epNum.classList.add("episode-number");
+
+            epDiv.appendChild(epImg);
+            epDiv.appendChild(epNum);
+            episodesList.appendChild(epDiv);
+        }
+    }
+
+    listBtn.addEventListener("click", async () => {
+        const titulo = modalTitle.textContent.trim();
+        const response = await fetch(`/toggle_lista/${encodeURIComponent(titulo)}`, {method: "POST"});
+        const data = await response.json();
+        if (data.en_lista) {
+            listBtn.classList.add("added");
+            listBtn.textContent = "✔ En mi lista";
+        } else {
+            listBtn.classList.remove("added");
+            listBtn.textContent = "＋ Mi lista";
+        }
+    });
+
+    seenBtn.addEventListener("click", async () => {
+        const titulo = modalTitle.textContent.trim();
+        const response = await fetch(`/toggle_visto/${encodeURIComponent(titulo)}`, {method: "POST"});
+        const data = await response.json();
+        if (data.visto) {
+            seenBtn.classList.add("visto");
+            seenBtn.textContent = "✅";
+        } else {
+            seenBtn.classList.remove("visto");
+            seenBtn.textContent = "👁";
+        }
+    });
+
+</script>
+
+</body>
+</html>

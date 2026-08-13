@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Usuarios - Admin</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@4.5.2/dist/slate/bootstrap.min.css"
+          integrity="sha384-8iuq0iaMHpnH2vSyvZMSIqQuUnQA7QM+f6srIdlgBrTSEyd//AWNMyEaSF2yPzNQ" crossorigin="anonymous">
+    <style>
+
+    </style>
+</head>
+<body>
+
+<header>
+    <h1 class="titulo">
+        <a href="{{ url_for('admin_home') }}">
+            <img src="{{ url_for('static', filename='img/Etheria.png') }}" style="width:100px; height:26px">
+        </a>
+    </h1>
+    <nav class="top-nav">
+        <a href="/admin_buscar">Buscar</a>
+        <a href="/usuarios" class="active">Usuarios</a>
+        <a href="/logout" style="padding-left: 400px">Salir</a>
+    </nav>
+</header>
+
+<main>
+    <h2 style="text-align:center;">Usuarios Registrados</h2>
+
+    <!-- Barra de búsqueda -->
+    <input type="text" id="search-input" placeholder="Buscar usuario...">
+
+    <table id="usuarios-table">
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>Nombre</th>
+            <th>Administrador</th>
+            <th>Acción</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for usuario in usuarios %}
+        <tr id="usuario-{{ usuario.id }}">
+            <td>{{ usuario.id }}</td>
+            <td class="nombre">{{ usuario.nombre }}</td>
+            <td>{{ "Sí" if usuario.is_admin else "No" }}</td>
+            <td>
+                {% if not usuario.is_admin %}
+                <button class="delete-btn" data-id="{{ usuario.id }}">Eliminar</button>
+                {% else %}
+                —
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <p id="no-results">No se encontraron usuarios.</p>
+</main>
+
+<script>
+    // === ELIMINAR USUARIOS ===
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const usuarioId = btn.dataset.id;
+            if (!confirm("¿Seguro que quieres eliminar este usuario?")) return;
+
+            try {
+                const res = await fetch(`/usuarios/eliminar/${usuarioId}`, { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    const fila = document.getElementById(`usuario-${usuarioId}`);
+                    if (fila) fila.remove();
+                } else {
+                    alert("Error: " + (data.error || "Desconocido"));
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Error de conexión");
+            }
+        });
+    });
+
+    // === BUSCADOR DINÁMICO ===
+    const searchInput = document.getElementById("search-input");
+    const tableRows = document.querySelectorAll("#usuarios-table tbody tr");
+    const noResults = document.getElementById("no-results");
+
+    searchInput.addEventListener("input", () => {
+        const filtro = searchInput.value.toLowerCase();
+        let visibles = 0;
+
+        tableRows.forEach(row => {
+            const nombre = row.querySelector(".nombre").textContent.toLowerCase();
+            if (nombre.includes(filtro)) {
+                row.style.display = "";
+                visibles++;
+            } else {
+                row.style.display = "none";
+            }
+        });
+
+        noResults.style.display = visibles === 0 ? "block" : "none";
+    });
+</script>
+
+</body>
+</html>

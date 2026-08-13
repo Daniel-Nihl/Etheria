@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Plataforma Media - Admin</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@4.5.2/dist/slate/bootstrap.min.css"
+          integrity="sha384-8iuq0iaMHpnH2vSyvZMSIqQuUnQA7QM+f6srIdlgBrTSEyd//AWNMyEaSF2yPzNQ" crossorigin="anonymous">
+</head>
+<body class="admin-home">
+
+<header>
+    <h1 class="titulo">
+        <a href="{{ url_for('admin_home') }}">
+            <img src="{{ url_for('static', filename='img/Etheria.png') }}" alt="Etheria"
+                 style="width:100px; height:26px">
+        </a>
+    </h1>
+
+    <nav class="top-nav">
+        <a href="/admin_buscar">Buscar</a>
+        <a href="/usuarios">Usuarios</a>
+        <a href="/logout" style="padding-left: 400px">Salir</a>
+    </nav>
+</header>
+
+{% macro carousel_block(title, items) %}
+<div class="media-block">
+    <h2>{{ title }}</h2>
+    <div class="carousel-wrapper">
+        <button class="scroll-left">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" class="bi bi-caret-left-fill"
+                 viewBox="0 0 16 16">
+                <defs>
+                    <linearGradient id="gradiente-flecha-left" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="crimson" stop-opacity="1"/>
+                        <stop offset="100%" stop-color="darkred" stop-opacity="0.8"/>
+                    </linearGradient>
+                </defs>
+                <path fill="url(#gradiente-flecha-left)"
+                      d="m3.86 8.753 5.482 4.796c.646.566 1.658.106 1.658-.753V3.204a1 1 0 0 0-1.659-.753l-5.48 4.796a1 1 0 0 0 0 1.506z"/>
+            </svg>
+        </button>
+        <div class="horizontal-scroll">
+            {% for item in items %}
+            <div class="media-item {% if item.oculto %}oculto{% endif %}">
+                <div class="media-thumb">
+                    <img src="{{ url_for('static', filename='img/' + item.imagen) }}"
+                         alt="{{ item.titulo }}"
+                         class="thumbnail"
+                         data-title="{{ item.titulo }}"
+                         data-type="{% if item.temporadas %}serie{% else %}pelicula{% endif %}"
+                         {% if item.temporadas %}data-temporadas="{{ item.temporadas }}" {% endif %}>
+                    <button class="toggle-oculto-btn" data-id="{{ item.media_id or item.id }}"
+                            data-tipo="{% if item.__class__.__name__ == 'SerieDetalle' %}serie{% elif item.__class__.__name__ == 'PeliculaDetalle' %}pelicula{% else %}media{% endif %}">
+                        {% if item.oculto %}Mostrar{% else %}Ocultar{% endif %}
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+
+            {% for i in range(9) %}
+            <div class="media-item">
+                <img src="{{ url_for('static', filename='img/coming_soon.jpg') }}"
+                     alt="Coming Soon" class="thumbnail"
+                     data-title="Próximamente"
+                     data-description="Este contenido no está disponible todavía.">
+            </div>
+            {% endfor %}
+        </div>
+        <button class="scroll-right">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" class="bi bi-caret-right-fill"
+                 viewBox="0 0 16 16">
+                <defs>
+                    <linearGradient id="gradiente-flecha-right" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="darkred" stop-opacity="0.8"/>
+                        <stop offset="100%" stop-color="crimson" stop-opacity="1"/>
+                    </linearGradient>
+                </defs>
+                <path fill="url(#gradiente-flecha-right)"
+                      d="m12.14 8.753-5.482 4.796c-.646.566-1.658.106-1.658-.753V3.204a1 1 0 0 1 1.659-.753l5.48 4.796a1 1 0 0 1 0 1.506z"/>
+            </svg>
+        </button>
+    </div>
+</div>
+{% endmacro %}
+
+{{ carousel_block('Películas', peliculas) }}
+{{ carousel_block('Series', series) }}
+{{ carousel_block('Dramas', dramas) }}
+{{ carousel_block('Animación', animacion) }}
+{{ carousel_block('Romance', romance) }}
+
+<script>
+    // Carrusel
+    document.querySelectorAll('.carousel-wrapper').forEach(wrapper => {
+        const scrollContainer = wrapper.querySelector('.horizontal-scroll');
+        const leftBtn = wrapper.querySelector('.scroll-left');
+        const rightBtn = wrapper.querySelector('.scroll-right');
+
+        const gap = parseInt(getComputedStyle(scrollContainer).gap) || 0;
+        const itemWidth = wrapper.querySelector('.media-item').offsetWidth;
+        const scrollAmount = itemWidth * 4 + gap * 3;
+
+        leftBtn.addEventListener('click', () => {
+            scrollContainer.scrollBy({left: -scrollAmount, behavior: 'smooth'});
+        });
+
+        rightBtn.addEventListener('click', () => {
+            scrollContainer.scrollBy({left: scrollAmount, behavior: 'smooth'});
+        });
+    });
+
+    // Ocultar / Mostrar media en todos los carruseles
+    document.querySelectorAll('.toggle-oculto-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const mediaId = btn.dataset.id;
+            const tipo = btn.dataset.tipo;
+
+            try {
+                const res = await fetch(`/ocultar_media/${tipo}/${mediaId}`, {method: 'POST'});
+                const data = await res.json();
+
+                if (!data.success) {
+                    alert("Error al cambiar estado: " + (data.error || "Desconocido"));
+                    return;
+                }
+
+                // Actualiza todas las miniaturas con el mismo ID
+                document.querySelectorAll(`.media-item .toggle-oculto-btn[data-id="${mediaId}"][data-tipo="${tipo}"]`).forEach(b => {
+                    const parentItem = b.closest('.media-item');
+                    if (!parentItem) return;
+
+                    parentItem.classList.toggle('oculto', data.oculto);
+                    b.textContent = data.oculto ? "Mostrar" : "Ocultar";
+                });
+
+            } catch (err) {
+                console.error(err);
+                alert("Error de conexión");
+            }
+        });
+    });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Admin - Buscar Media</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@4.5.2/dist/slate/bootstrap.min.css"
+          integrity="sha384-8iuq0iaMHpnH2vSyvZMSIqQuUnQA7QM+f6srIdlgBrTSEyd//AWNMyEaSF2yPzNQ" crossorigin="anonymous">
+</head>
+<body class="body">
+
+<header>
+    <h1 class="titulo">
+        <a href="{{ url_for('admin_home') }}">
+            <img src="{{ url_for('static', filename='img/Etheria.png') }}" style="width:100px; height:26px">
+        </a>
+    </h1>
+
+    <nav class="top-nav">
+        <a href="/admin/buscar">Buscar</a>
+        <a href="/usuarios">Usuarios</a>
+        <a href="/logout" style="padding-left: 400px">Salir</a>
+    </nav>
+</header>
+
+<main style="padding: 20px;">
+    <input type="text" id="search-input" class="search-bar" placeholder="Buscar media...">
+
+    <div id="media-results" class="media-grid">
+
+    </div>
+</main>
+
+<script>
+    const searchInput = document.getElementById("search-input");
+    const mediaResults = document.getElementById("media-results");
+    let searchTimeout;
+
+    async function fetchMedia(query) {
+        try {
+            const response = await fetch(`/api/buscar_media?q=${encodeURIComponent(query)}`);
+            if (!response.ok) throw new Error("Error en la petición");
+            return await response.json();
+        } catch (err) {
+            console.error(err);
+            return [];
+        }
+    }
+
+    function renderMedia(items) {
+        mediaResults.innerHTML = ""; // limpia resultados previos
+
+        items.forEach(item => {
+            const div = document.createElement("div");
+            div.className = "media-item";
+
+            div.innerHTML = `
+            <div class="media-thumb ${item.oculto ? "oculto" : ""}">
+                <img src="/static/img/${item.imagen}"
+                     alt="${item.titulo}"
+                     class="thumbnail"
+                     data-title="${item.titulo}"
+                     data-type="${item.temporadas ? 'serie' : 'pelicula'}"
+                     ${item.temporadas ? `data-temporadas="${item.temporadas}"` : ''}>
+                <button class="toggle-oculto-btn"
+                        data-id="${item.id}"
+                        data-tipo="${item.temporadas ? 'serie' : 'pelicula'}">
+                    ${item.oculto ? "Mostrar" : "Ocultar"}
+                </button>
+            </div>
+            <h5 style="margin-top:10px;">${item.titulo}</h5>
+            <p style="font-size:13px;">
+                ${item.anio || ""}
+                ${item.temporadas ? `• ${item.temporadas} temp.` : ""}
+                • ${item.genero || "Sin género"}
+            </p>
+        `;
+
+            mediaResults.appendChild(div);
+        });
+
+        attachToggleEvents(); // vuelve a asociar los botones
+    }
+
+
+    function attachToggleEvents() {
+        document.querySelectorAll(".toggle-oculto-btn").forEach(btn => {
+            btn.onclick = async () => {
+                const id = btn.dataset.id;
+                const type = btn.dataset.tipo; // CORRECTO
+
+                try {
+                    const res = await fetch(`/ocultar_media/media/${id}`, {method: "POST"});
+                    const data = await res.json();
+                    if (data.success) {
+                        btn.textContent = data.oculto ? "Mostrar" : "Ocultar";
+                        btn.closest(".media-thumb").classList.toggle("oculto", data.oculto);
+                    } else {
+                        alert("Error: " + (data.error || "Desconocido"));
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert("Error de conexión");
+                }
+            };
+        });
+    }
+
+
+    searchInput.addEventListener("input", () => {
+        clearTimeout(searchTimeout);
+        const query = searchInput.value.trim();
+
+        searchTimeout = setTimeout(async () => {
+            if (!query) {
+                mediaResults.innerHTML = "";
+                return;
+            }
+            const items = await fetchMedia(query);
+            renderMedia(items);
+        }, 300);
+    });
+</script>
+
+</body>
+</html>
