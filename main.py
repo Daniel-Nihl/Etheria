@@ -3,35 +3,18 @@ import re
 import hashlib
 from functools import wraps
 from uuid import uuid4
-
-from flask import (
-    Flask,
-    render_template,
-    request,
-    jsonify,
-    redirect,
-    session,
-    flash,
-    url_for,
-    get_flashed_messages,
-)
+from flask import (Flask, render_template, request, jsonify, redirect, session, flash, url_for, get_flashed_messages,)
 from sqlalchemy.orm import joinedload
 from werkzeug.utils import secure_filename
-
 from db import db
-from models import (
-    Usuario,
-    Media,
-    PeliculaDetalle,
-    SerieDetalle,
-    Temporada,
-    Episodio,
-    Lista,
-    Visto,
-)
+from models import (Usuario, Media, PeliculaDetalle, SerieDetalle, Temporada, Episodio, Lista, Visto,)
 
 app = Flask(__name__)
-app.secret_key = "clave_secreta"
+
+app.secret_key = os.environ.get(
+    "SECRET_KEY",
+    "clave_secreta"
+)
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 db_folder = os.path.join(BASE_DIR, "database")
